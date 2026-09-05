@@ -50,37 +50,36 @@ testing > 2022
 
 
 ### Running the Application
-
 #### Backend (FastAPI)
 - *Prerequisites*: Python 3.10+
 - *Steps*:
   1. Open a terminal and navigate to the backend directory:
-     bash
+     ```bash
      cd Backend
-     
+     ```
   2. Activate the virtual environment (Windows):
-     bash
+     ```bash
      .\.venv\Scripts\activate
-     
+     ```
   3. Run the development server:
-     bash
+     ```bash
      uvicorn main:app --reload
-     
+     ```
   4. The backend API will be available at http://localhost:8000.
 
 #### Frontend (React + Vite)
 - *Prerequisites*: Node.js and npm
 - *Steps*:
   1. Open a new terminal and navigate to the frontend directory:
-     bash
+     ```bash
      cd Frontend
-     
+     ```
   2. Install dependencies:
-     bash
+     ```bash
      npm install
-     
+     ```
   3. Start the development server:
-     bash
+     ```bash
      npm run dev
-     
+     ```
   4. The interface will be accessible at http://localhost:5173.
