@@ -82,6 +82,8 @@ function App() {
       alert("Could not connect to FastAPI"); 
     } 
   }; 
+
+  // # update
  
   return ( 
     <div className="app"> 
