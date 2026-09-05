@@ -69,7 +69,7 @@ function App() {
   return (
     <div className="app">
 
-      <h1>☀️ Solar Power Prediction</h1>
+      <div className="sun"></div> <h1>Solar Power Prediction</h1>
 
       <div className="container">
 
