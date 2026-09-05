@@ -8,6 +8,25 @@ body {
   background: #f4f7fb;
 }
 
+.sun {
+  width: 100px;
+  height: 100px;
+  background: yellow;
+  border-radius: 100%;
+  box-shadow: 0 0 40px yellow;
+  animation: glow 2s infinite alternate;
+  margin-left: 460px;
+}
+
+@keyframes glow {
+  from {
+    box-shadow: 0 0 20px yellow;
+  }
+  to {
+    box-shadow: 0 0 60px yellow;
+  }
+}
+
 .app {
   min-height: 100vh;
   padding: 40px;
