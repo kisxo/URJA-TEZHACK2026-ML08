@@ -12,7 +12,7 @@ database link
 https://datadryad.org/dataset/doi:10.5061/dryad.m37pvmd99
 
 ### Objective
-To forcast solar power generation with respect to weather parameters.
+To forecast solar power generation with respect to weather parameters.
 
 ### Data Preprocessing
 
@@ -21,6 +21,7 @@ unzip the Dataset
 and paste the 'Dataset; folder under '/data'
 
 1. Fix typo in metadata
+at file 'PV generation system metadata.ttl'
 fix `brick:value 68.62 ] .` to `brick:value 68.62 ] ;` at line number 876
 
 2. merge meterological data
