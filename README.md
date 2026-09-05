@@ -45,12 +45,10 @@ testing > 2022
 
 ### Expected Output
 
+### Running the Application 
 
-
-
-
-### Running the Application
 #### Backend (FastAPI)
+
 - *Prerequisites*: Python 3.10+
 - *Steps*:
   1. Open a terminal and navigate to the backend directory:
