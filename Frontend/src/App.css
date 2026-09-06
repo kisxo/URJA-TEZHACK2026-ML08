@@ -33,7 +33,6 @@ body {
 }
 
 /* --- Header / hero sun --- */
-
 .sun {
   position: absolute;
   top: -120px;
@@ -79,13 +78,12 @@ h1 {
 h2 {
   font-family: 'Space Grotesk', sans-serif;
   font-weight: 600;
-  font-size: 1.05rem;
+  font-size: 1.15rem;
   margin: 0 0 16px;
   color: var(--text);
 }
 
 /* --- Prediction result --- */
-
 .container {
   position: relative;
   z-index: 1;
@@ -95,8 +93,7 @@ h2 {
   margin-bottom: 32px;
 }
 
-.prediction-image,
-.history-image {
+.prediction-image {
   display: block;
   width: 100%;
   height: auto;
@@ -105,13 +102,12 @@ h2 {
 }
 
 /* --- Form card --- */
-
 .form-card {
   background: var(--bg-raised);
   border: 1px solid var(--card-border);
   border-radius: var(--radius);
   padding: 24px;
-  margin-bottom: 32px;
+  margin-bottom: 40px;
 }
 
 .form-card form {
@@ -129,10 +125,9 @@ h2 {
   color: var(--text-muted);
 }
 
-.form-card input[type="number"] {
-  width: 64px;
-  margin-left: 4px;
-  padding: 6px 8px;
+.form-card input[type="number"],
+.form-card select {
+  padding: 8px 12px;
   background: var(--bg);
   border: 1px solid var(--card-border);
   border-radius: 6px;
@@ -141,36 +136,62 @@ h2 {
   font-size: 0.9rem;
 }
 
+.form-card input[type="number"] {
+  width: 72px;
+  margin-left: 4px;
+}
+
+.form-card select {
+  cursor: pointer;
+}
+
 .form-card input[type="checkbox"] {
   width: 16px;
   height: 16px;
   accent-color: var(--gold);
 }
 
-.form-card button[type="submit"] {
+.form-actions {
+  display: flex;
+  gap: 12px;
   margin-left: auto;
-  background: var(--gold);
-  color: #1a1200;
+}
+
+.btn {
   border: none;
   border-radius: 6px;
   padding: 10px 20px;
   font-weight: 600;
   font-size: 0.9rem;
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition: background 0.15s ease, opacity 0.15s ease;
 }
 
-.form-card button[type="submit"]:hover:not(:disabled) {
+.btn-primary {
+  background: var(--gold);
+  color: #1a1200;
+}
+
+.btn-primary:hover:not(:disabled) {
   background: var(--gold-hover);
 }
 
-.form-card button[type="submit"]:disabled {
+.btn-danger {
+  background: rgba(253, 61, 61, 0.15);
+  color: #ff6b6b;
+  border: 1px solid rgba(253, 61, 61, 0.3);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: rgba(253, 61, 61, 0.25);
+}
+
+.btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
 /* --- History --- */
-
 .history-card {
   position: relative;
   z-index: 1;
@@ -189,10 +210,11 @@ h2 {
 
 .history-item {
   display: grid;
-  grid-template-columns: 140px 1fr;
-  gap: 20px;
-  padding: 20px 0;
+  grid-template-columns: 200px 1fr;
+  gap: 24px;
+  padding: 24px 0;
   border-top: 1px solid var(--card-border);
+  align-items: start;
 }
 
 .history-item:last-child {
@@ -200,19 +222,26 @@ h2 {
 }
 
 .history-image {
-  width: 140px;
-  height: 140px;
+  width: 100%;
+  height: 130px;
   object-fit: cover;
+  border-radius: var(--radius);
+  border: 1px solid var(--card-border);
+  transition: opacity 0.2s ease;
 }
 
-.history-item p {
+.history-image:hover {
+  opacity: 0.85;
+}
+
+.history-details p {
   margin: 0 0 6px;
   font-size: 0.88rem;
   color: var(--text-muted);
   line-height: 1.5;
 }
 
-.history-item p strong {
+.history-details p strong {
   color: var(--text);
   font-weight: 500;
   margin-right: 4px;
@@ -228,7 +257,7 @@ h2 {
   font-size: 0.82rem;
   font-weight: 500;
   cursor: pointer;
-  margin-top: 6px;
+  margin-top: 10px;
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 
@@ -243,21 +272,19 @@ h2 {
 }
 
 /* --- Responsive --- */
-
-@media (max-width: 520px) {
-  .app {
-    padding: 40px 16px 64px;
+@media (max-width: 768px) {
+  .form-card form {
+    flex-direction: column;
+    align-items: stretch;
   }
 
-  .sun {
-    width: 180px;
-    height: 180px;
-    top: -80px;
-    right: -60px;
+  .form-actions {
+    margin-left: 0;
+    justify-content: stretch;
   }
 
-  h1 {
-    font-size: 1.75rem;
+  .form-actions .btn {
+    flex: 1;
   }
 
   .history-item {
@@ -265,29 +292,14 @@ h2 {
   }
 
   .history-image {
-    width: 100%;
     height: 180px;
-  }
-
-  .form-card button[type="submit"] {
-    margin-left: 0;
-    width: 100%;
   }
 }
 
 /* --- Accessibility --- */
-
 button:focus-visible,
-input:focus-visible {
+input:focus-visible,
+select:focus-visible {
   outline: 2px solid var(--gold);
   outline-offset: 2px;
-}
-
-.clear{
-  padding: .5rem 1rem;
-  color: #0c0000;
-  background-color: rgb(253, 61, 61);
-  border: none;
-  font: bold;
-  border-radius: .2rem;
 }

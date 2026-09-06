@@ -18,6 +18,11 @@ function App() {
   const [historyError, setHistoryError] = useState(null);
   const [forecastOnly, setForecastOnly] = useState(false);
   const [days, setDays] = useState(1);
+  const [selectModel, setSelectModel] = useState("xg");
+
+  const handleModelChange = (event) => {
+    setSelectModel(event.target.value);
+  };
 
   const loadHistory = useCallback(async () => {
     setHistoryLoading(true);
@@ -54,7 +59,7 @@ function App() {
 
     try {
       const response = await fetch(
-        `${API_BASE}/predict/${forecastOnly}/${days}`,
+        `${API_BASE}/predict/${forecastOnly}/${selectModel}/${days}`,
         { method: "POST" }
       );
 
@@ -64,11 +69,6 @@ function App() {
       }
 
       const result = await response.json();
-
-      // /predict only returns { image_url }. The full record (peak values,
-      // plot_date, etc.) lives in the DB, so refetch history rather than
-      // trying to fabricate a history row from fields the endpoint doesn't
-      // return.
       setImageUrl(result.image_url || null);
       await loadHistory();
     } catch (error) {
@@ -81,21 +81,21 @@ function App() {
 
   const handleClearHistory = async (e) => {
     e.preventDefault();
-    window.confirm("This will delete all history!")
+    if (!window.confirm("This will delete all history!")) return;
 
     setLoading(true);
 
     try {
-      const response = await fetch(
-        `${API_BASE}/history/clear`,
-        { method: "DELETE" }
-      );
+      const response = await fetch(`${API_BASE}/history/clear`, {
+        method: "DELETE",
+      });
 
       if (!response.ok) {
         const body = await response.json().catch(() => null);
-        throw new Error(body?.error || "Prediction request failed");
+        throw new Error(body?.error || "Clear history failed");
       }
 
+      setImageUrl(null);
       await loadHistory();
     } catch (error) {
       console.error("Error:", error);
@@ -125,36 +125,61 @@ function App() {
         )}
       </div>
 
-      {/* FORECAST */}
+      {/* FORECAST FORM */}
       <div className="form-card">
         <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={forecastOnly}
+                onChange={(e) => setForecastOnly(e.target.checked)}
+              />
+              Forecast Only
+            </label>
+          </div>
 
-          <label>
-            <input
-              type="checkbox"
-              checked={forecastOnly}
-              onChange={(e) => setForecastOnly(e.target.checked)}
-            />
-            Forecast Only
-          </label>
+          <div className="form-group">
+            <label>
+              Forecast Days
+              <input
+                type="number"
+                min="1"
+                value={days}
+                onChange={(e) => setDays(Number(e.target.value))}
+              />
+            </label>
+          </div>
 
-          <label>
-            Forecast Days
-            <input
-              type="number"
-              min="1"
-              value={days}
-              onChange={(e) => setDays(Number(e.target.value))}
-            />
-          </label>
+          <div className="form-group">
+            <label htmlFor="model-select">Model: </label>
+            <select
+              id="model-select"
+              value={selectModel}
+              onChange={handleModelChange}
+            >
+              <option value="xg">XGBoost</option>
+              <option value="rf">Random Forest</option>
+            </select>
+          </div>
 
-            <button onClick={handleClearHistory} className="clear" disabled={loading}>
-              {loading ? "Clearing..." : "Clear History"}
-            </button>
-
-            <button type="submit" disabled={loading}>
+          <div className="form-actions">
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={loading}
+            >
               {loading ? "Generating..." : "Forecast"}
             </button>
+            <button
+              type="button"
+              onClick={handleClearHistory}
+              className="btn btn-danger clear"
+              disabled={loading}
+            >
+              {"Clear History"}
+            </button>
+          </div>
         </form>
       </div>
 
@@ -172,66 +197,64 @@ function App() {
           <p className="empty">No predictions yet.</p>
         )}
 
-        {!historyLoading &&
-          !historyError &&
-          history.map((item) => (
-            <div className="history-item" key={item.id}>
-              <p>
-                <strong>Run Date:</strong> {formatDate(item.plot_date)}
-              </p>
+        <div className="history-list">
+          {!historyLoading &&
+            !historyError &&
+            history.map((item) => (
+              <div className="history-item" key={item.id}>
+                {item.image_path && (
+                  <a
+                    href={`${API_BASE}/${item.image_path}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <img
+                      src={`${API_BASE}/${item.image_path}`}
+                      alt="Historical prediction visualization"
+                      className="history-image"
+                    />
+                  </a>
+                )}
+                <div className="history-details">
+                  <p>
+                    <strong>Run Date:</strong> {formatDate(item.plot_date)}
+                  </p>
+                  <p>
+                    <strong>Mode:</strong>{" "}
+                    {item.forecast_only ? "Forecast" : "Actual"}
+                  </p>
+                  <p>
+                    <strong>Days:</strong> {item.no_of_days}
+                  </p>
+                  <p>
+                    <strong>Peak Actual:</strong>{" "}
+                    {item.peak_actual != null
+                      ? `${item.peak_actual.toFixed(3)} kWh`
+                      : "—"}
+                  </p>
+                  <p>
+                    <strong>Peak Predicted:</strong>{" "}
+                    {item.peak_predicted != null
+                      ? `${item.peak_predicted.toFixed(3)} kWh`
+                      : "—"}
+                  </p>
+                  <p>
+                    <strong>Created:</strong> {formatDate(item.created_at)}
+                  </p>
 
-              <p>
-                <strong>Mode:</strong>{" "}
-                {item.forecast_only ? "Forecast" : "Actual"}
-              </p>
-
-              <p>
-                <strong>Days:</strong> {item.no_of_days}
-              </p>
-
-              <p>
-                <strong>Peak Actual:</strong>{" "}
-                {item.peak_actual != null
-                  ? `${item.peak_actual.toFixed(3)} kWh`
-                  : "—"}
-              </p>
-
-              <p>
-                <strong>Peak Predicted:</strong>{" "}
-                {item.peak_predicted != null
-                  ? `${item.peak_predicted.toFixed(3)} kWh`
-                  : "—"}
-              </p>
-
-              {item.image_path && (
-                <a
-                  href={`${API_BASE}/${item.image_path}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <img
-                    src={`${API_BASE}/${item.image_path}`}
-                    alt="Historical prediction visualization"
-                    className="history-image"
-                  />
-                </a>
-              )}
-
-              <p>
-                <strong>Created:</strong> {formatDate(item.created_at)}
-              </p>
-
-              <button
-                type="button"
-                className="export-button export-button--small"
-                onClick={() => {
-                  window.location.href = `${API_BASE}/export/${item.id}`;
-                }}
-              >
-                Export CSV
-              </button>
-            </div>
-          ))}
+                  <button
+                    type="button"
+                    className="export-button export-button--small"
+                    onClick={() => {
+                      window.location.href = `${API_BASE}/export/${item.id}`;
+                    }}
+                  >
+                    Export CSV
+                  </button>
+                </div>
+              </div>
+            ))}
+        </div>
       </div>
     </div>
   );
