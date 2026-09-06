@@ -54,7 +54,7 @@ def _add_cyclical_features(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def random_predict(forecast_only: bool = False, model: str = 'xg', no_of_days: int = 1):
+def random_predict(forecast_only: bool = False, model_name: str = 'xg', no_of_days: int = 1):
     """
     Run the trained model against a dataset, plot a randomly chosen window of
     `no_of_days` days, persist the run + row-level forecasts to the DB, and
@@ -63,7 +63,7 @@ def random_predict(forecast_only: bool = False, model: str = 'xg', no_of_days: i
     if no_of_days < 1:
         raise ValueError("no_of_days must be >= 1")
 
-    MODEL_PATH = f"urja-{model}.joblib"
+    MODEL_PATH = f"urja-{model_name}.joblib"
 
     if not os.path.exists(MODEL_PATH):
         raise FileNotFoundError(f"Model file not found at {MODEL_PATH}")
@@ -95,8 +95,10 @@ def random_predict(forecast_only: bool = False, model: str = 'xg', no_of_days: i
     X_test = dataset_df[FEATURES]
     y_test = dataset_df[TARGET]
 
-    y_pred3 = model.predict(X_test)
+    if model_name != 'xg':
+        X_test = X_test.drop(columns=['site_id_ttl'])
 
+    y_pred3 = model.predict(X_test)
     # Append the forecast to the clean saved dataframe. Both save_df and
     # dataset_df share the same reset RangeIndex, so this assignment aligns
     # by row order correctly.
@@ -135,7 +137,7 @@ def random_predict(forecast_only: bool = False, model: str = 'xg', no_of_days: i
     ax.plot(times, actual_vals, color='black', linewidth=1.5, label='Actual')
     ax.plot(times, pred_vals, color='#2ecc71', linewidth=1.5, label='Forecast')
     ax.axhline(y=0.01, color='red', linewidth=1, linestyle='-', label='Low Generation (0.01)')
-    ax.set_title('Actual vs Model 3 — All Sites', fontsize=13)
+    ax.set_title(f"Solar power generation {model_name}— {'Forecast' if forecast_only else 'Forecast vs Actual'}", fontsize=13)
     ax.set_xlabel('Time')
     ax.set_ylabel('normalized_generation')
     ax.legend(loc='upper right', frameon=True)
