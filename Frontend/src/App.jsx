@@ -1,222 +1,262 @@
-import { useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import "./App.css";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-} from "recharts";
+
+const API_BASE = "http://127.0.0.1:8000";
+
+function formatDate(isoString) {
+  if (!isoString) return "—";
+  const d = new Date(isoString);
+  if (Number.isNaN(d.getTime())) return isoString;
+  return d.toLocaleString();
+}
 
 function App() {
-  const [formData, setFormData] = useState({
-    sunlight: "",
-    temperature: "",
-    cloud_cover: "",
-    season: "",
-    time: "",
-  });
-
-  const [prediction, setPrediction] = useState(null);
+  const [imageUrl, setImageUrl] = useState(null);
   const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyError, setHistoryError] = useState(null);
+  const [forecastOnly, setForecastOnly] = useState(false);
+  const [days, setDays] = useState(1);
+  const [selectModel, setSelectModel] = useState("xg");
 
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+  const handleModelChange = (event) => {
+    setSelectModel(event.target.value);
   };
+
+  const loadHistory = useCallback(async () => {
+    setHistoryLoading(true);
+    setHistoryError(null);
+    try {
+      const response = await fetch(`${API_BASE}/history`);
+      if (!response.ok) {
+        throw new Error("Failed to load history");
+      }
+      const data = await response.json();
+      setHistory(data);
+    } catch (error) {
+      console.error("Error loading history:", error);
+      setHistoryError(error.message || "Failed to load history");
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
+  // Load prediction history on mount
+  useEffect(() => {
+    loadHistory();
+  }, [loadHistory]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const data = new URLSearchParams();
+    if (!Number.isInteger(days) || days < 1) {
+      alert("Forecast days must be a positive whole number");
+      return;
+    }
 
-    data.append("sunlight", formData.sunlight);
-    data.append("temperature", formData.temperature);
-    data.append("cloud_cover", formData.cloud_cover);
-    data.append("season", formData.season);
-    data.append("time", formData.time);
+    setLoading(true);
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/predict", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: data,
-      });
+      const response = await fetch(
+        `${API_BASE}/predict/${forecastOnly}/${selectModel}/${days}`,
+        { method: "POST" }
+      );
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        throw new Error(body?.error || "Prediction request failed");
+      }
 
       const result = await response.json();
-
-      setPrediction(result.prediction);
-
-      setHistory((prevHistory) => [
-        {
-          ...formData,
-          prediction: result.prediction,
-          date:result.date
-        },
-        ...prevHistory,
-      ]);
+      setImageUrl(result.image_url || null);
+      await loadHistory();
     } catch (error) {
       console.error("Error:", error);
-      alert("Could not connect to FastAPI");
+      alert(error.message || "Could not connect to FastAPI");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleClearHistory = async (e) => {
+    e.preventDefault();
+    if (!window.confirm("This will delete all history!")) return;
+
+    setLoading(true);
+
+    try {
+      const response = await fetch(`${API_BASE}/history/clear`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        throw new Error(body?.error || "Clear history failed");
+      }
+
+      setImageUrl(null);
+      await loadHistory();
+    } catch (error) {
+      console.error("Error:", error);
+      alert(error.message || "Could not connect to FastAPI");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div className="app">
+      <div className="sun"></div>
 
-      <div className="sun"></div> <h1>Solar Power Prediction</h1>
+      <h1>Solar Power Prediction</h1>
 
       <div className="container">
-
-        {/* FORM */}
-        <div className="form-card">
-
-          <h2>Enter Solar Data</h2>
-
-          <form onSubmit={handleSubmit}>
-
-            <label>Sunlight (hours)</label>
-            <input
-              type="number"
-              name="sunlight"
-              step="0.1"
-              value={formData.sunlight}
-              onChange={handleChange}
-              required
+        {imageUrl && (
+          <div className="prediction">
+            <h2>Predicted Solar Power</h2>
+            <img
+              src={imageUrl}
+              alt="Prediction visualization"
+              width={1000}
+              className="prediction-image"
             />
-
-            <label>Temperature (°C)</label>
-            <input
-              type="number"
-              name="temperature"
-              step="0.1"
-              value={formData.temperature}
-              onChange={handleChange}
-              required
-            />
-
-            <label>Cloud Cover (%)</label>
-            <input
-              type="number"
-              name="cloud_cover"
-              min="0"
-              max="100"
-              value={formData.cloud_cover}
-              onChange={handleChange}
-              required
-            />
-
-            <label>Season</label>
-            <select
-              name="season"
-              value={formData.season}
-              onChange={handleChange}
-              required
-            >
-              <option value="">Select season</option>
-              <option value="Spring">Spring</option>
-              <option value="Summer">Summer</option>
-              <option value="Autumn">Autumn</option>
-              <option value="Winter">Winter</option>
-            </select>
-
-            <label>Time</label>
-            <input
-              type="time"
-              name="time"
-              value={formData.time}
-              onChange={handleChange}
-              required
-            />
-
-            <button type="submit">
-              Predict Solar Power
-            </button>
-
-          </form>
-
-          {prediction !== null && (
-            <div className="prediction">
-              <h2>Predicted Solar Power</h2>
-              <div className="prediction-value">
-                {prediction} kWh
-              </div>
-            </div>
-          )}
-
-        </div>
-
-
-        {/* HISTORY */}
-        <div className="history-card">
-
-          <h2>📊 Prediction History</h2>
-
-          {history.length === 0 ? (
-            <p className="empty">
-              No predictions yet.
-            </p>
-          ) : (
-
-            history.map((item, index) => (
-
-              <div className="history-item" key={index}>
-
-                <p>
-                  <strong>Sunlight:</strong>{" "}
-                  {item.sunlight} hours
-                </p>
-
-                <p>
-                  <strong>Temperature:</strong>{" "}
-                  {item.temperature} °C
-                </p>
-
-                <p>
-                  <strong>Cloud Cover:</strong>{" "}
-                  {item.cloud_cover}%
-                </p>
-
-                <p>
-                  <strong>Season:</strong>{" "}
-                  {item.season}
-                </p>
-
-                <p>
-                  <strong>Time:</strong>{" "}
-                  {item.time}
-                </p>
-
-                <p>
-                  <strong>Date</strong>{" "}
-                  {item.date}
-                </p>
-
-                <p className="history-prediction">
-                  <strong>Prediction:</strong>{" "}
-                  {item.prediction} kWh
-                </p>
-
-              </div>
-
-            ))
-
-          )}
-
-        </div>
-
+          </div>
+        )}
       </div>
 
+      {/* FORECAST FORM */}
+      <div className="form-card">
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={forecastOnly}
+                onChange={(e) => setForecastOnly(e.target.checked)}
+              />
+              Forecast Only
+            </label>
+          </div>
 
+          <div className="form-group">
+            <label>
+              Forecast Days
+              <input
+                type="number"
+                min="1"
+                value={days}
+                onChange={(e) => setDays(Number(e.target.value))}
+              />
+            </label>
+          </div>
 
+          <div className="form-group">
+            <label htmlFor="model-select">Model: </label>
+            <select
+              id="model-select"
+              value={selectModel}
+              onChange={handleModelChange}
+            >
+              <option value="xg">XGBoost</option>
+              <option value="rf">Random Forest</option>
+            </select>
+          </div>
+
+          <div className="form-actions">
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={loading}
+            >
+              {loading ? "Generating..." : "Forecast"}
+            </button>
+            <button
+              type="button"
+              onClick={handleClearHistory}
+              className="btn btn-danger clear"
+              disabled={loading}
+            >
+              {"Clear History"}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* HISTORY */}
+      <div className="history-card">
+        <h2>Prediction History</h2>
+
+        {historyLoading && <p className="loading">Loading history…</p>}
+
+        {!historyLoading && historyError && (
+          <p className="error">{historyError}</p>
+        )}
+
+        {!historyLoading && !historyError && history.length === 0 && (
+          <p className="empty">No predictions yet.</p>
+        )}
+
+        <div className="history-list">
+          {!historyLoading &&
+            !historyError &&
+            history.map((item) => (
+              <div className="history-item" key={item.id}>
+                {item.image_path && (
+                  <a
+                    href={`${API_BASE}/${item.image_path}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <img
+                      src={`${API_BASE}/${item.image_path}`}
+                      alt="Historical prediction visualization"
+                      className="history-image"
+                    />
+                  </a>
+                )}
+                <div className="history-details">
+                  <p>
+                    <strong>Run Date:</strong> {formatDate(item.plot_date)}
+                  </p>
+                  <p>
+                    <strong>Mode:</strong>{" "}
+                    {item.forecast_only ? "Forecast" : "Actual"}
+                  </p>
+                  <p>
+                    <strong>Days:</strong> {item.no_of_days}
+                  </p>
+                  <p>
+                    <strong>Peak Actual:</strong>{" "}
+                    {item.peak_actual != null
+                      ? `${item.peak_actual.toFixed(3)} kWh`
+                      : "—"}
+                  </p>
+                  <p>
+                    <strong>Peak Predicted:</strong>{" "}
+                    {item.peak_predicted != null
+                      ? `${item.peak_predicted.toFixed(3)} kWh`
+                      : "—"}
+                  </p>
+                  <p>
+                    <strong>Created:</strong> {formatDate(item.created_at)}
+                  </p>
+
+                  <button
+                    type="button"
+                    className="export-button export-button--small"
+                    onClick={() => {
+                      window.location.href = `${API_BASE}/export/${item.id}`;
+                    }}
+                  >
+                    Export CSV
+                  </button>
+                </div>
+              </div>
+            ))}
+        </div>
+      </div>
     </div>
-
-
   );
 }
 
