@@ -1,13 +1,5 @@
 import { useState, useEffect } from "react";
 import "./App.css";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-} from "recharts";
 
 function App() {
   const [formData, setFormData] = useState({
@@ -97,10 +89,10 @@ function App() {
         {/* FORM */} 
         <div className="form-card"> 
  
-          <h2>Enter Solar Data</h2> 
+          {/* <h2>Enter Solar Data</h2>  */}
  
           <form onSubmit={handleSubmit}> 
- 
+{/*  
             <label>Date & Time</label> 
             <input 
               type="datetime-local" 
@@ -180,10 +172,10 @@ function App() {
               value={formData.wind_speed_ms} 
               onChange={handleChange} 
               required 
-            /> 
+            />  */}
  
             <button type="submit"> 
-              Predict Solar Power 
+              Random Forecast
             </button> 
  
           </form> 

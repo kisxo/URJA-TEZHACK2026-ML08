@@ -4,6 +4,11 @@ from datetime import datetime
 from pathlib import Path
 import pandas as pd
 import joblib
+from predict import random_predict
+from xgboost import XGBRegressor
+
+
+
 
 from sqlalchemy import create_engine, Column, Integer, Float, DateTime
 from sqlalchemy.orm import declarative_base, sessionmaker
@@ -16,15 +21,9 @@ import io
 
 app = FastAPI()
 
+sqlite_file_name = "solar_prediction.db.db"
+DATABASE_URL = f"sqlite:///{sqlite_file_name}"
 
-# SQLite database
-from pathlib import Path
-
-BASE_DIR = Path(__file__).resolve().parent
-DATABASE_PATH = BASE_DIR / "solar_prediction.db"
-
-DATABASE_URL = f"sqlite:///{DATABASE_PATH}"
-print("running")
 
 engine = create_engine(
     DATABASE_URL,
@@ -72,81 +71,83 @@ app.add_middleware(
 
 
 # ==============================
-# Load trained model
-# ==============================
-
-model_path = Path(__file__).parent / "solar_model.pkl"
-model = joblib.load(model_path)
-
-
-# ==============================
 # Prediction
 # ==============================
 
-@app.post("/predict")
-def predict(
-    time: str = Form(...),
-    irradiance_wm2: float = Form(...),
-    rainfall_mm: float = Form(...),
-    relative_humidity_pct: float = Form(...),
-    sea_level_pressure_hpa: float = Form(...),
-    temperature_c: float = Form(...),
-    visibility_km: float = Form(...),
-    wind_speed_ms: float = Form(...),
-):
+# @app.post("/predict")
+# def predict(
+#     time: str = Form(...),
+#     irradiance_wm2: float = Form(...),
+#     rainfall_mm: float = Form(...),
+#     relative_humidity_pct: float = Form(...),
+#     sea_level_pressure_hpa: float = Form(...),
+#     temperature_c: float = Form(...),
+#     visibility_km: float = Form(...),
+#     wind_speed_ms: float = Form(...),
+# ):
 
-    # Convert time from React into datetime
-    dt = datetime.fromisoformat(time)
+#     # Convert time from React into datetime
+#     dt = datetime.fromisoformat(time)
 
-    # Extract time features used during model training
-    hour = dt.hour
-    minute = dt.minute
-    day = dt.day
-    month = dt.month
+#     # Extract time features used during model training
+#     hour = dt.hour
+#     minute = dt.minute
+#     day = dt.day
+#     month = dt.month
 
-    # Create input in the SAME order used during training
-    input_data = pd.DataFrame([{
-        "hour": hour,
-        "minute": minute,
-        "day": day,
-        "month": month,
-        "irradiance_wm2": irradiance_wm2,
-        "rainfall_mm": rainfall_mm,
-        "relative_humidity_pct": relative_humidity_pct,
-        "sea_level_pressure_hpa": sea_level_pressure_hpa,
-        "temperature_c": temperature_c,
-        "visibility_km": visibility_km,
-        "wind_speed_ms": wind_speed_ms
-    }])
+#     # Create input in the SAME order used during training
+#     input_data = pd.DataFrame([{
+#         "hour": hour,
+#         "minute": minute,
+#         "day": day,
+#         "month": month,
+#         "irradiance_wm2": irradiance_wm2,
+#         "rainfall_mm": rainfall_mm,
+#         "relative_humidity_pct": relative_humidity_pct,
+#         "sea_level_pressure_hpa": sea_level_pressure_hpa,
+#         "temperature_c": temperature_c,
+#         "visibility_km": visibility_km,
+#         "wind_speed_ms": wind_speed_ms
+#     }])
 
-    # Get prediction from trained model
-    prediction = model.predict(input_data)[0]
+#     # Get prediction from trained model
+#     prediction = model.predict(input_data)[0]
 
-    db = SessionLocal()
+#     db = SessionLocal()
 
-    new_prediction = Prediction(
-        time=dt,
-        irradiance_wm2=irradiance_wm2,
-        rainfall_mm=rainfall_mm,
-        relative_humidity_pct=relative_humidity_pct,
-        sea_level_pressure_hpa=sea_level_pressure_hpa,
-        temperature_c=temperature_c,
-        visibility_km=visibility_km,
-        wind_speed_ms=wind_speed_ms,
-        prediction=float(prediction)
-    )
+#     new_prediction = Prediction(
+#         time=dt,
+#         irradiance_wm2=irradiance_wm2,
+#         rainfall_mm=rainfall_mm,
+#         relative_humidity_pct=relative_humidity_pct,
+#         sea_level_pressure_hpa=sea_level_pressure_hpa,
+#         temperature_c=temperature_c,
+#         visibility_km=visibility_km,
+#         wind_speed_ms=wind_speed_ms,
+#         prediction=float(prediction)
+#     )
     
-    db.add(new_prediction)
-    db.commit()
-    db.close()
+#     db.add(new_prediction)
+#     db.commit()
+#     db.close()
 
-    print("Prediction:", prediction)
+#     print("Prediction:", prediction)
 
-    # Return prediction to React
-    return {
-        "prediction": round(float(prediction), 4),
-        "date": str(dt.date())
-    }
+#     # Return prediction to React
+#     return {
+#         "prediction": round(float(prediction), 4),
+#         "date": str(dt.date())
+#     }
+
+@app.post("/predict")
+def predict():
+    try:
+        result = random_predict()
+    except Exception as e:
+        print(e)
+        return "Error"
+
+    return "Worked"
 
 
 @app.get("/history")
