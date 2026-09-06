@@ -1,13 +1,13 @@
 import csv
 import io
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import StreamingResponse, JSONResponse
 
 from predict import random_predict
-from db import SessionLocal, ForecastRow, PredictionRecord
+from db import SessionLocal, ForecastRow, PredictionRecord, init_db
 
 app = FastAPI()
 
@@ -141,6 +141,31 @@ def export_csv_for_prediction(prediction_id: int):
         return _rows_to_csv_response(rows, f"solar_prediction_{prediction_id}.csv")
     finally:
         db.close()
+
+
+@app.delete("/history/clear")
+def clear_history():
+    """Clear all prediction records and their cascade-linked forecast rows from the database."""
+    init_db()
+    session = SessionLocal()
+    try:
+        # Query and delete all prediction records; SQLAlchemy cascade handles the child forecast rows automatically
+        deleted_predictions = session.query(PredictionRecord).delete()
+        session.commit()
+
+        return {
+            "status": "success",
+            "message": "History and related forecast rows cleared successfully.",
+            "deleted_predictions": deleted_predictions,
+        }
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to clear history: {str(e)}",
+        )
+    finally:
+        session.close()
 
 
 def _prediction_record_to_dict(item: PredictionRecord) -> dict:

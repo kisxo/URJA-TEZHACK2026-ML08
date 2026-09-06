@@ -282,3 +282,12 @@ input:focus-visible {
   outline: 2px solid var(--gold);
   outline-offset: 2px;
 }
+
+.clear{
+  padding: .5rem 1rem;
+  color: #0c0000;
+  background-color: rgb(253, 61, 61);
+  border: none;
+  font: bold;
+  border-radius: .2rem;
+}

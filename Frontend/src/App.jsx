@@ -79,6 +79,32 @@ function App() {
     }
   };
 
+  const handleClearHistory = async (e) => {
+    e.preventDefault();
+    window.confirm("This will delete all history!")
+
+    setLoading(true);
+
+    try {
+      const response = await fetch(
+        `${API_BASE}/history/clear`,
+        { method: "DELETE" }
+      );
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        throw new Error(body?.error || "Prediction request failed");
+      }
+
+      await loadHistory();
+    } catch (error) {
+      console.error("Error:", error);
+      alert(error.message || "Could not connect to FastAPI");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="app">
       <div className="sun"></div>
@@ -102,6 +128,7 @@ function App() {
       {/* FORECAST */}
       <div className="form-card">
         <form onSubmit={handleSubmit}>
+
           <label>
             <input
               type="checkbox"
@@ -121,9 +148,13 @@ function App() {
             />
           </label>
 
-          <button type="submit" disabled={loading}>
-            {loading ? "Generating..." : "Forecast"}
-          </button>
+            <button onClick={handleClearHistory} className="clear" disabled={loading}>
+              {loading ? "Clearing..." : "Clear History"}
+            </button>
+
+            <button type="submit" disabled={loading}>
+              {loading ? "Generating..." : "Forecast"}
+            </button>
         </form>
       </div>
 

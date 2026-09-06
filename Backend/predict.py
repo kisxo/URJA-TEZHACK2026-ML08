@@ -131,7 +131,7 @@ def random_predict(forecast_only: bool = False, no_of_days: int = 1):
     fig, ax = plt.subplots(figsize=(14, 6))
 
     ax.plot(times, actual_vals, color='black', linewidth=1.5, label='Actual')
-    ax.plot(times, pred_vals, color='#2ecc71', linewidth=1.5, label='Model 3')
+    ax.plot(times, pred_vals, color='#2ecc71', linewidth=1.5, label='Forecast')
     ax.axhline(y=0.01, color='red', linewidth=1, linestyle='-', label='Low Generation (0.01)')
     ax.set_title('Actual vs Model 3 — All Sites', fontsize=13)
     ax.set_xlabel('Time')
