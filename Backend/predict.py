@@ -5,7 +5,8 @@ import numpy as np
 import pandas as pd
 import joblib
 from xgboost import XGBRegressor
-
+import uuid
+import os
 
 def random_predict():
     model = joblib.load("urja.joblib")
@@ -55,7 +56,7 @@ def random_predict():
 
     ax.plot(times, actual_vals, color='black', linewidth=1.5, label='Actual')
     ax.plot(times, pred_vals, color='#2ecc71', linewidth=1.5, label='Model 3')
-
+    ax.axhline(y=0.01, color='red', linewidth=1, linestyle='-', label='Low Generation (0.01)')
     ax.set_title('Actual vs Model 3 — All Sites', fontsize=13)
     ax.set_xlabel('Time')
     ax.set_ylabel('normalized_generation')
@@ -77,7 +78,10 @@ def random_predict():
     )
 
     plt.tight_layout()
-    plt.savefig('actual_vs_model3_random_day.png', dpi=150, bbox_inches='tight', facecolor='white')
+    os.makedirs('images', exist_ok=True)
+    filename = f'images/{uuid.uuid4()}.png'
+    plt.savefig(filename, dpi=300, bbox_inches='tight', facecolor='white')
+
     print(f"Plotted random day: {random_day.strftime('%Y-%m-%d')}")
     print("Saved to actual_vs_model3_random_day.png")
 
