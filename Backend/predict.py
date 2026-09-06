@@ -8,12 +8,12 @@ from xgboost import XGBRegressor
 import uuid
 import os
 
-def random_predict(forcast_only: bool):
+def random_predict(forcast_only: bool, no_of_days: int = 1):
     model = joblib.load("urja.joblib")
 
-    dataset_df = pd.read_csv('stage-3/test_data.csv')
+    dataset_df = pd.read_csv('stage-3/actual_data.csv')
     if(forcast_only):
-        dataset_df = pd.read_csv('stage-3/test_data_null.csv')
+        dataset_df = pd.read_csv('stage-3/forecast_data.csv')
 
     for d in [dataset_df]:
         d['hour_sin'] = np.sin(2 * np.pi * d['hour'] / 24)
@@ -44,7 +44,7 @@ def random_predict(forcast_only: bool):
     random_day = np.random.choice(available_days)
     random_day = pd.Timestamp(random_day)
 
-    mask = (dataset_df['datetime'] >= random_day) & (dataset_df['datetime'] < random_day + pd.Timedelta(days=2))
+    mask = (dataset_df['datetime'] >= random_day) & (dataset_df['datetime'] < random_day + pd.Timedelta(days=no_of_days))
     mask = mask.values  # convert to numpy boolean array once, use everywhere
 
     times = dataset_df.loc[mask, 'datetime']

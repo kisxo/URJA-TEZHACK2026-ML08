@@ -45,6 +45,10 @@ h1 {
 .container {
 }
 
+input{
+  background-color: white;
+  color: black;
+}
 .form-card,
 .history-card {
   background: white;

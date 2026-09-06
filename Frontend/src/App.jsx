@@ -6,6 +6,8 @@ function App() {
   const [imageUrl, setImageUrl] = useState(null);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [useActual, setUseActual] = useState(false);
+  const [days, setDays] = useState(1);
 
   // Load prediction history
   useEffect(() => {
@@ -33,9 +35,12 @@ function App() {
     setLoading(true);
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/predict", {
-        method: "POST",
-      });
+      const response = await fetch(
+        `http://127.0.0.1:8000/predict/${useActual}/${days}`,
+        {
+          method: "POST",
+        }
+      );
 
       if (!response.ok) {
         throw new Error("Prediction request failed");
@@ -77,109 +82,126 @@ function App() {
       <h1>Solar Power Prediction</h1>
 
       <div className="container">
+        {prediction !== null && (
+          <div className="prediction">
+            <h2>Predicted Solar Power</h2>
 
-                  {prediction !== null && (
-            <div className="prediction">
-              <h2>Predicted Solar Power</h2>
-
-              {imageUrl && (
-                <img
-                  src={imageUrl}
-                  alt="Prediction visualization"
-                  width={1000}
-                  className="prediction-image"
-                />
-              )}
-            </div>
-          )}
-        </div>
-        {/* FORECAST */}
-        <div className="form-card">
-          <form onSubmit={handleSubmit}>
-            <button type="submit" disabled={loading}>
-              {loading ? "Generating..." : "Random Forecast"}
-            </button>
-          </form>
-
+            {imageUrl && (
+              <img
+                src={imageUrl}
+                alt="Prediction visualization"
+                width={1000}
+                className="prediction-image"
+              />
+            )}
+          </div>
+        )}
       </div>
 
-                  {/* EXPORT */}
-        <button
-          type="button"
-          className="export-button"
-          onClick={() => {
-            window.location.href = "http://127.0.0.1:8000/export";
-          }}
-        >
-          Export CSV
-        </button>
-        {/* HISTORY */}
-        <div className="history-card">
-          <h2>📊 Prediction History</h2>
+      {/* FORECAST */}
+      <div className="form-card">
+        <form onSubmit={handleSubmit}>
+          <label>
+            <input
+              type="checkbox"
+              checked={useActual}
+              onChange={(e) => setUseActual(e.target.checked)}
+            />
+            Forecast Only
+          </label>
 
-          {history.length === 0 ? (
-            <p className="empty">No predictions yet.</p>
-          ) : (
-            history.map((item, index) => (
-              <div className="history-item" key={index}>
+          <label>
+            Forecast Days
+            <input
+              type="number"
+              min="1"
+              value={days}
+              onChange={(e) => setDays(Number(e.target.value))}
+            />
+          </label>
 
-                <p>
-                  <strong>Irradiance:</strong>{" "}
-                  {item.irradiance_wm2} W/m²
-                </p>
+          <button type="submit" disabled={loading}>
+            {loading ? "Generating..." : "Random Forecast"}
+          </button>
+        </form>
+      </div>
 
-                <p>
-                  <strong>Rainfall:</strong>{" "}
-                  {item.rainfall_mm} mm
-                </p>
+      {/* EXPORT */}
+      <button
+        type="button"
+        className="export-button"
+        onClick={() => {
+          window.location.href = "http://127.0.0.1:8000/export";
+        }}
+      >
+        Export CSV
+      </button>
 
-                <p>
-                  <strong>Humidity:</strong>{" "}
-                  {item.relative_humidity_pct}%
-                </p>
+      {/* HISTORY */}
+      <div className="history-card">
+        <h2>📊 Prediction History</h2>
 
-                <p>
-                  <strong>Pressure:</strong>{" "}
-                  {item.sea_level_pressure_hpa} hPa
-                </p>
+        {history.length === 0 ? (
+          <p className="empty">No predictions yet.</p>
+        ) : (
+          history.map((item, index) => (
+            <div className="history-item" key={index}>
+              <p>
+                <strong>Irradiance:</strong>{" "}
+                {item.irradiance_wm2} W/m²
+              </p>
 
-                <p>
-                  <strong>Temperature:</strong>{" "}
-                  {item.temperature_c} °C
-                </p>
+              <p>
+                <strong>Rainfall:</strong>{" "}
+                {item.rainfall_mm} mm
+              </p>
 
-                <p>
-                  <strong>Visibility:</strong>{" "}
-                  {item.visibility_km} km
-                </p>
+              <p>
+                <strong>Humidity:</strong>{" "}
+                {item.relative_humidity_pct}%
+              </p>
 
-                <p>
-                  <strong>Wind Speed:</strong>{" "}
-                  {item.wind_speed_ms} m/s
-                </p>
+              <p>
+                <strong>Pressure:</strong>{" "}
+                {item.sea_level_pressure_hpa} hPa
+              </p>
 
-                <p>
-                  <strong>Date & Time:</strong>{" "}
-                  {item.time}
-                </p>
+              <p>
+                <strong>Temperature:</strong>{" "}
+                {item.temperature_c} °C
+              </p>
 
-                {item.image_url && (
-                  <img
-                    src={item.image_url}
-                    alt="Historical prediction visualization"
-                    className="history-image"
-                  />
-                )}
+              <p>
+                <strong>Visibility:</strong>{" "}
+                {item.visibility_km} km
+              </p>
 
-                <p className="history-prediction">
-                  <strong>Prediction:</strong>{" "}
-                  {item.prediction} kWh
-                </p>
+              <p>
+                <strong>Wind Speed:</strong>{" "}
+                {item.wind_speed_ms} m/s
+              </p>
 
-              </div>
-            ))
-          )}
-        </div>
+              <p>
+                <strong>Date & Time:</strong>{" "}
+                {item.time}
+              </p>
+
+              {item.image_url && (
+                <img
+                  src={item.image_url}
+                  alt="Historical prediction visualization"
+                  className="history-image"
+                />
+              )}
+
+              <p className="history-prediction">
+                <strong>Prediction:</strong>{" "}
+                {item.prediction} kWh
+              </p>
+            </div>
+          ))
+        )}
+      </div>
     </div>
   );
 }
