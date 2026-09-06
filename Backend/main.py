@@ -140,10 +140,10 @@ app.add_middleware(
 #         "date": str(dt.date())
 #     }
 
-@app.post("/predict")
-def predict():
+@app.post("/predict/{forecast_only}")
+def predict(forecast_only: bool):
     try:
-        img_url= random_predict()
+        img_url= random_predict(forecast_only)
         return {"image_url": 'http://127.0.0.1:8000/' + img_url}
     except Exception as e:
         print(e)

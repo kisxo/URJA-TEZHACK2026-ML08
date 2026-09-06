@@ -8,10 +8,12 @@ from xgboost import XGBRegressor
 import uuid
 import os
 
-def random_predict():
+def random_predict(forcast_only: bool):
     model = joblib.load("urja.joblib")
 
     dataset_df = pd.read_csv('stage-3/test_data.csv')
+    if(forcast_only):
+        dataset_df = pd.read_csv('stage-3/test_data_null.csv')
 
     for d in [dataset_df]:
         d['hour_sin'] = np.sin(2 * np.pi * d['hour'] / 24)
