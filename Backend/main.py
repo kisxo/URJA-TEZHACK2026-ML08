@@ -1,67 +1,19 @@
-from fastapi import FastAPI, Form
-from fastapi.middleware.cors import CORSMiddleware
-from datetime import datetime
-from pathlib import Path
-import pandas as pd
-import joblib
-from predict import random_predict
-from xgboost import XGBRegressor
-from fastapi.staticfiles import StaticFiles
-
-
-
-
-from sqlalchemy import create_engine, Column, Integer, Float, DateTime
-from sqlalchemy.orm import declarative_base, sessionmaker
-
-
-# update
 import csv
-from fastapi.responses import StreamingResponse
 import io
 
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import StreamingResponse, JSONResponse
+
+from predict import random_predict
+from db import SessionLocal, ForecastRow, PredictionRecord, init_db
+
 app = FastAPI()
-
-sqlite_file_name = "solar_prediction.db.db"
-DATABASE_URL = f"sqlite:///{sqlite_file_name}"
-
-
-engine = create_engine(
-    DATABASE_URL,
-    connect_args={"check_same_thread": False}
-)
-
-SessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=engine
-)
-
-Base = declarative_base()
-
-class Prediction(Base):
-    __tablename__ = "predictions"
-
-    id = Column(Integer, primary_key=True, index=True)
-    time = Column(DateTime)
-
-    irradiance_wm2 = Column(Float)
-    rainfall_mm = Column(Float)
-    relative_humidity_pct = Column(Float)
-    sea_level_pressure_hpa = Column(Float)
-    temperature_c = Column(Float)
-    visibility_km = Column(Float)
-    wind_speed_ms = Column(Float)
-
-    prediction = Column(Float)
-
-Base.metadata.create_all(bind=engine)
-
 
 # ==============================
 # Allow React frontend
 # ==============================
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],
@@ -71,162 +23,186 @@ app.add_middleware(
 )
 
 
-# ==============================
-# Prediction
-# ==============================
-
-# @app.post("/predict")
-# def predict(
-#     time: str = Form(...),
-#     irradiance_wm2: float = Form(...),
-#     rainfall_mm: float = Form(...),
-#     relative_humidity_pct: float = Form(...),
-#     sea_level_pressure_hpa: float = Form(...),
-#     temperature_c: float = Form(...),
-#     visibility_km: float = Form(...),
-#     wind_speed_ms: float = Form(...),
-# ):
-
-#     # Convert time from React into datetime
-#     dt = datetime.fromisoformat(time)
-
-#     # Extract time features used during model training
-#     hour = dt.hour
-#     minute = dt.minute
-#     day = dt.day
-#     month = dt.month
-
-#     # Create input in the SAME order used during training
-#     input_data = pd.DataFrame([{
-#         "hour": hour,
-#         "minute": minute,
-#         "day": day,
-#         "month": month,
-#         "irradiance_wm2": irradiance_wm2,
-#         "rainfall_mm": rainfall_mm,
-#         "relative_humidity_pct": relative_humidity_pct,
-#         "sea_level_pressure_hpa": sea_level_pressure_hpa,
-#         "temperature_c": temperature_c,
-#         "visibility_km": visibility_km,
-#         "wind_speed_ms": wind_speed_ms
-#     }])
-
-#     # Get prediction from trained model
-#     prediction = model.predict(input_data)[0]
-
-#     db = SessionLocal()
-
-#     new_prediction = Prediction(
-#         time=dt,
-#         irradiance_wm2=irradiance_wm2,
-#         rainfall_mm=rainfall_mm,
-#         relative_humidity_pct=relative_humidity_pct,
-#         sea_level_pressure_hpa=sea_level_pressure_hpa,
-#         temperature_c=temperature_c,
-#         visibility_km=visibility_km,
-#         wind_speed_ms=wind_speed_ms,
-#         prediction=float(prediction)
-#     )
-    
-#     db.add(new_prediction)
-#     db.commit()
-#     db.close()
-
-#     print("Prediction:", prediction)
-
-#     # Return prediction to React
-#     return {
-#         "prediction": round(float(prediction), 4),
-#         "date": str(dt.date())
-#     }
-
 @app.post("/predict/{forecast_only}/{days}")
 def predict(forecast_only: bool, days: str):
     try:
         valid_days = int(days)
     except (TypeError, ValueError):
         valid_days = 0
+
+    if valid_days < 1:
+        return JSONResponse(status_code=400, content={"error": "days must be a positive integer"})
+
     try:
-        img_url= random_predict(forecast_only, valid_days)
-        return {"image_url": 'http://127.0.0.1:8000/' + img_url}
+        record = random_predict(forecast_only, valid_days)
     except Exception as e:
         print(e)
-        return "Error"
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
-    return "Worked"
+    # record is a dict (see predict.py), and image_path is already a full
+    # relative path like "images/<uuid>.png" — don't prefix with a slash
+    # twice or index into it as if it were an object.
+    image_path = record["image_path"]
+    return {"image_url": f"http://127.0.0.1:8000/{image_path}"}
 
 
 @app.get("/history")
 def get_history():
     db = SessionLocal()
+    try:
+        history = db.query(PredictionRecord).order_by(PredictionRecord.id.desc()).all()
+        return [_prediction_record_to_dict(item) for item in history]
+    finally:
+        db.close()
 
-    history = db.query(Prediction).order_by(Prediction.id.desc()).all()
 
-    db.close()
+CSV_HEADER = [
+    "ID",
+    "Prediction ID",
+    "Year",
+    "Month",
+    "Day",
+    "Hour",
+    "Minute",
+    "Site ID",
+    "Irradiance",
+    "Rainfall",
+    "Humidity",
+    "Pressure",
+    "Temperature",
+    "Visibility",
+    "Wind Speed",
+    "Actual Generation",
+    "Forecasted Generation",
+]
 
+
+def _forecast_row_to_csv_row(item: ForecastRow) -> list:
     return [
-        {
-            "id": item.id,
-            "time": item.time,
-            "irradiance_wm2": item.irradiance_wm2,
-            "rainfall_mm": item.rainfall_mm,
-            "relative_humidity_pct": item.relative_humidity_pct,
-            "sea_level_pressure_hpa": item.sea_level_pressure_hpa,
-            "temperature_c": item.temperature_c,
-            "visibility_km": item.visibility_km,
-            "wind_speed_ms": item.wind_speed_ms,
-            "prediction": item.prediction
-        }
-        for item in history
+        item.id,
+        item.prediction_id,
+        item.year,
+        item.month,
+        item.day,
+        item.hour,
+        item.minute,
+        item.site_id_ttl,
+        item.irradiance_wm2,
+        item.rainfall_mm,
+        item.relative_humidity_pct,
+        item.sea_level_pressure_hpa,
+        item.temperature_c,
+        item.visibility_km,
+        item.wind_speed_ms,
+        item.normalized_generation,
+        item.forecasted_generation,
     ]
 
-#to csv
-@app.get("/export")
-def export_csv():
-    db = SessionLocal()
 
-    history = db.query(Prediction).order_by(Prediction.id.desc()).all()
-
-    db.close()
-
+def _rows_to_csv_response(rows: list[ForecastRow], filename: str) -> StreamingResponse:
     output = io.StringIO()
     writer = csv.writer(output)
-
-    writer.writerow([
-        "ID",
-        "Time",
-        "Irradiance",
-        "Rainfall",
-        "Humidity",
-        "Pressure",
-        "Temperature",
-        "Visibility",
-        "Wind Speed",
-        "Prediction"
-    ])
-
-    for item in history:
-        writer.writerow([
-            item.id,
-            item.time,
-            item.irradiance_wm2,
-            item.rainfall_mm,
-            item.relative_humidity_pct,
-            item.sea_level_pressure_hpa,
-            item.temperature_c,
-            item.visibility_km,
-            item.wind_speed_ms,
-            item.prediction
-        ])
-
+    writer.writerow(CSV_HEADER)
+    for item in rows:
+        writer.writerow(_forecast_row_to_csv_row(item))
     output.seek(0)
 
     return StreamingResponse(
         iter([output.getvalue()]),
         media_type="text/csv",
-        headers={
-            "Content-Disposition": "attachment; filename=solar_predictions.csv"
-        }
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
 
+
+@app.get("/export")
+def export_csv():
+    db = SessionLocal()
+    try:
+        history = db.query(ForecastRow).order_by(ForecastRow.id.desc()).all()
+        return _rows_to_csv_response(history, "solar_predictions.csv")
+    finally:
+        db.close()
+
+
+@app.get("/export/{prediction_id}")
+def export_csv_for_prediction(prediction_id: int):
+    db = SessionLocal()
+    try:
+        record = db.query(PredictionRecord).filter(PredictionRecord.id == prediction_id).first()
+        if record is None:
+            return JSONResponse(status_code=404, content={"error": "Prediction run not found"})
+
+        rows = (
+            db.query(ForecastRow)
+            .filter(ForecastRow.prediction_id == prediction_id)
+            .order_by(ForecastRow.id.asc())
+            .all()
+        )
+        return _rows_to_csv_response(rows, f"solar_prediction_{prediction_id}.csv")
+    finally:
+        db.close()
+
+
+@app.delete("/history/clear")
+def clear_history():
+    """Clear all prediction records and their cascade-linked forecast rows from the database."""
+    init_db()
+    session = SessionLocal()
+    try:
+        # Query and delete all prediction records; SQLAlchemy cascade handles the child forecast rows automatically
+        deleted_predictions = session.query(PredictionRecord).delete()
+        session.commit()
+
+        return {
+            "status": "success",
+            "message": "History and related forecast rows cleared successfully.",
+            "deleted_predictions": deleted_predictions,
+        }
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to clear history: {str(e)}",
+        )
+    finally:
+        session.close()
+
+
+def _prediction_record_to_dict(item: PredictionRecord) -> dict:
+    return {
+        "id": item.id,
+        "forecast_only": item.forecast_only,
+        "no_of_days": item.no_of_days,
+        "plot_date": item.plot_date.isoformat() if item.plot_date else None,
+        "peak_actual": item.peak_actual,
+        "peak_predicted": item.peak_predicted,
+        "image_path": item.image_path,
+        "created_at": item.created_at.isoformat() if item.created_at else None,
+    }
+
+
+def _forecast_row_to_dict(item: ForecastRow) -> dict:
+    return {
+        "id": item.id,
+        "prediction_id": item.prediction_id,
+        "year": item.year,
+        "month": item.month,
+        "day": item.day,
+        "hour": item.hour,
+        "minute": item.minute,
+        "site_id_ttl": item.site_id_ttl,
+        "irradiance_wm2": item.irradiance_wm2,
+        "rainfall_mm": item.rainfall_mm,
+        "relative_humidity_pct": item.relative_humidity_pct,
+        "sea_level_pressure_hpa": item.sea_level_pressure_hpa,
+        "temperature_c": item.temperature_c,
+        "visibility_km": item.visibility_km,
+        "wind_speed_ms": item.wind_speed_ms,
+        "normalized_generation": item.normalized_generation,
+        "forecasted_generation": item.forecasted_generation,
+    }
+
+
+# Serve generated plot images. Must be mounted after routes are defined so
+# the more specific routes above take precedence.
 app.mount("/images", StaticFiles(directory="images"), name="images")

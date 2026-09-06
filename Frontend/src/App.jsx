@@ -1,75 +1,105 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import "./App.css";
 
+const API_BASE = "http://127.0.0.1:8000";
+
+function formatDate(isoString) {
+  if (!isoString) return "—";
+  const d = new Date(isoString);
+  if (Number.isNaN(d.getTime())) return isoString;
+  return d.toLocaleString();
+}
+
 function App() {
-  const [prediction, setPrediction] = useState(null);
   const [imageUrl, setImageUrl] = useState(null);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [useActual, setUseActual] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyError, setHistoryError] = useState(null);
+  const [forecastOnly, setForecastOnly] = useState(false);
   const [days, setDays] = useState(1);
 
-  // Load prediction history
-  useEffect(() => {
-    const loadHistory = async () => {
-      try {
-        const response = await fetch("http://127.0.0.1:8000/history");
-
-        if (!response.ok) {
-          throw new Error("Failed to load history");
-        }
-
-        const data = await response.json();
-        setHistory(data);
-      } catch (error) {
-        console.error("Error loading history:", error);
+  const loadHistory = useCallback(async () => {
+    setHistoryLoading(true);
+    setHistoryError(null);
+    try {
+      const response = await fetch(`${API_BASE}/history`);
+      if (!response.ok) {
+        throw new Error("Failed to load history");
       }
-    };
-
-    loadHistory();
+      const data = await response.json();
+      setHistory(data);
+    } catch (error) {
+      console.error("Error loading history:", error);
+      setHistoryError(error.message || "Failed to load history");
+    } finally {
+      setHistoryLoading(false);
+    }
   }, []);
+
+  // Load prediction history on mount
+  useEffect(() => {
+    loadHistory();
+  }, [loadHistory]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!Number.isInteger(days) || days < 1) {
+      alert("Forecast days must be a positive whole number");
+      return;
+    }
 
     setLoading(true);
 
     try {
       const response = await fetch(
-        `http://127.0.0.1:8000/predict/${useActual}/${days}`,
-        {
-          method: "POST",
-        }
+        `${API_BASE}/predict/${forecastOnly}/${days}`,
+        { method: "POST" }
       );
 
       if (!response.ok) {
-        throw new Error("Prediction request failed");
+        const body = await response.json().catch(() => null);
+        throw new Error(body?.error || "Prediction request failed");
       }
 
       const result = await response.json();
 
-      setPrediction(result.prediction);
+      // /predict only returns { image_url }. The full record (peak values,
+      // plot_date, etc.) lives in the DB, so refetch history rather than
+      // trying to fabricate a history row from fields the endpoint doesn't
+      // return.
       setImageUrl(result.image_url || null);
-
-      setHistory((prevHistory) => [
-        {
-          time: result.time,
-          irradiance_wm2: result.irradiance_wm2,
-          rainfall_mm: result.rainfall_mm,
-          relative_humidity_pct: result.relative_humidity_pct,
-          sea_level_pressure_hpa: result.sea_level_pressure_hpa,
-          temperature_c: result.temperature_c,
-          visibility_km: result.visibility_km,
-          wind_speed_ms: result.wind_speed_ms,
-          prediction: result.prediction,
-          date: result.date,
-          image_url: result.image_url,
-        },
-        ...prevHistory,
-      ]);
+      await loadHistory();
     } catch (error) {
       console.error("Error:", error);
-      alert("Could not connect to FastAPI");
+      alert(error.message || "Could not connect to FastAPI");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleClearHistory = async (e) => {
+    e.preventDefault();
+    window.confirm("This will delete all history!")
+
+    setLoading(true);
+
+    try {
+      const response = await fetch(
+        `${API_BASE}/history/clear`,
+        { method: "DELETE" }
+      );
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        throw new Error(body?.error || "Prediction request failed");
+      }
+
+      await loadHistory();
+    } catch (error) {
+      console.error("Error:", error);
+      alert(error.message || "Could not connect to FastAPI");
     } finally {
       setLoading(false);
     }
@@ -82,18 +112,15 @@ function App() {
       <h1>Solar Power Prediction</h1>
 
       <div className="container">
-        {prediction !== null && (
+        {imageUrl && (
           <div className="prediction">
             <h2>Predicted Solar Power</h2>
-
-            {imageUrl && (
-              <img
-                src={imageUrl}
-                alt="Prediction visualization"
-                width={1000}
-                className="prediction-image"
-              />
-            )}
+            <img
+              src={imageUrl}
+              alt="Prediction visualization"
+              width={1000}
+              className="prediction-image"
+            />
           </div>
         )}
       </div>
@@ -101,11 +128,12 @@ function App() {
       {/* FORECAST */}
       <div className="form-card">
         <form onSubmit={handleSubmit}>
+
           <label>
             <input
               type="checkbox"
-              checked={useActual}
-              onChange={(e) => setUseActual(e.target.checked)}
+              checked={forecastOnly}
+              onChange={(e) => setForecastOnly(e.target.checked)}
             />
             Forecast Only
           </label>
@@ -120,87 +148,90 @@ function App() {
             />
           </label>
 
-          <button type="submit" disabled={loading}>
-            {loading ? "Generating..." : "Random Forecast"}
-          </button>
+            <button onClick={handleClearHistory} className="clear" disabled={loading}>
+              {loading ? "Clearing..." : "Clear History"}
+            </button>
+
+            <button type="submit" disabled={loading}>
+              {loading ? "Generating..." : "Forecast"}
+            </button>
         </form>
       </div>
 
-      {/* EXPORT */}
-      <button
-        type="button"
-        className="export-button"
-        onClick={() => {
-          window.location.href = "http://127.0.0.1:8000/export";
-        }}
-      >
-        Export CSV
-      </button>
-
       {/* HISTORY */}
       <div className="history-card">
-        <h2>📊 Prediction History</h2>
+        <h2>Prediction History</h2>
 
-        {history.length === 0 ? (
+        {historyLoading && <p className="loading">Loading history…</p>}
+
+        {!historyLoading && historyError && (
+          <p className="error">{historyError}</p>
+        )}
+
+        {!historyLoading && !historyError && history.length === 0 && (
           <p className="empty">No predictions yet.</p>
-        ) : (
-          history.map((item, index) => (
-            <div className="history-item" key={index}>
+        )}
+
+        {!historyLoading &&
+          !historyError &&
+          history.map((item) => (
+            <div className="history-item" key={item.id}>
               <p>
-                <strong>Irradiance:</strong>{" "}
-                {item.irradiance_wm2} W/m²
+                <strong>Run Date:</strong> {formatDate(item.plot_date)}
               </p>
 
               <p>
-                <strong>Rainfall:</strong>{" "}
-                {item.rainfall_mm} mm
+                <strong>Mode:</strong>{" "}
+                {item.forecast_only ? "Forecast" : "Actual"}
               </p>
 
               <p>
-                <strong>Humidity:</strong>{" "}
-                {item.relative_humidity_pct}%
+                <strong>Days:</strong> {item.no_of_days}
               </p>
 
               <p>
-                <strong>Pressure:</strong>{" "}
-                {item.sea_level_pressure_hpa} hPa
+                <strong>Peak Actual:</strong>{" "}
+                {item.peak_actual != null
+                  ? `${item.peak_actual.toFixed(3)} kWh`
+                  : "—"}
               </p>
 
               <p>
-                <strong>Temperature:</strong>{" "}
-                {item.temperature_c} °C
+                <strong>Peak Predicted:</strong>{" "}
+                {item.peak_predicted != null
+                  ? `${item.peak_predicted.toFixed(3)} kWh`
+                  : "—"}
               </p>
 
-              <p>
-                <strong>Visibility:</strong>{" "}
-                {item.visibility_km} km
-              </p>
-
-              <p>
-                <strong>Wind Speed:</strong>{" "}
-                {item.wind_speed_ms} m/s
-              </p>
-
-              <p>
-                <strong>Date & Time:</strong>{" "}
-                {item.time}
-              </p>
-
-              {item.image_url && (
-                <img
-                  src={item.image_url}
-                  alt="Historical prediction visualization"
-                  className="history-image"
-                />
+              {item.image_path && (
+                <a
+                  href={`${API_BASE}/${item.image_path}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <img
+                    src={`${API_BASE}/${item.image_path}`}
+                    alt="Historical prediction visualization"
+                    className="history-image"
+                  />
+                </a>
               )}
 
-              <p className="history-prediction">
-                <strong>Prediction:</strong>{" "}
-                {item.prediction} kWh
+              <p>
+                <strong>Created:</strong> {formatDate(item.created_at)}
               </p>
+
+              <button
+                type="button"
+                className="export-button export-button--small"
+                onClick={() => {
+                  window.location.href = `${API_BASE}/export/${item.id}`;
+                }}
+              >
+                Export CSV
+              </button>
             </div>
-          ))
-        )}
+          ))}
       </div>
     </div>
   );
