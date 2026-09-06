@@ -6,6 +6,7 @@ import pandas as pd
 import joblib
 from predict import random_predict
 from xgboost import XGBRegressor
+from fastapi.staticfiles import StaticFiles
 
 
 
@@ -142,7 +143,8 @@ app.add_middleware(
 @app.post("/predict")
 def predict():
     try:
-        result = random_predict()
+        img_url= random_predict()
+        return {"image_url": 'http://127.0.0.1:8000/' + img_url}
     except Exception as e:
         print(e)
         return "Error"
@@ -222,3 +224,5 @@ def export_csv():
             "Content-Disposition": "attachment; filename=solar_predictions.csv"
         }
     )
+
+app.mount("/images", StaticFiles(directory="images"), name="images")

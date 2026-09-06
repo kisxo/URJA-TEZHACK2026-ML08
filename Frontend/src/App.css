@@ -38,17 +38,11 @@ body {
 
 h1 {
   text-align: center;
-  margin-block: 100px;
+  margin-block: 20px;
   color: black;
 }
 
 .container {
-  max-width: 1100px;
-  margin: auto;
-
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 30px;
 }
 
 .form-card,

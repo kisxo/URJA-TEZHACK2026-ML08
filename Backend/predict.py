@@ -85,6 +85,8 @@ def random_predict():
     print(f"Plotted random day: {random_day.strftime('%Y-%m-%d')}")
     print("Saved to actual_vs_model3_random_day.png")
 
+    return filename
+
 
 if __name__ == "__main__":
     random_predict()
