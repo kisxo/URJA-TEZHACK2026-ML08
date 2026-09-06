@@ -83,7 +83,7 @@ Models were assessed using R-squared, Mean Squared Error (MSE), Root Mean Square
 | Linear Regression | 0.553262 |   0.0013 | 0.0364 |0.0182 |
 | Decision Tree |  0.622105 | 0.0011 | 0.0328 | 0.0178 |
 | Random Forest | 0.732888 |   0.0008 |0.0276 | 0.0163 |
-| XGBoost | 0.8150735 | 0.00063735 | 0.025245 | 0.0141268 |
+| XGBoost | 0.815073 | 0.0006 | 0.0252 | 0.0141 |
 
 ## Feature Importance Analysis
 
