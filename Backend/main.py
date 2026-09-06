@@ -23,8 +23,8 @@ app.add_middleware(
 )
 
 
-@app.post("/predict/{forecast_only}/{days}")
-def predict(forecast_only: bool, days: str):
+@app.post("/predict/{forecast_only}/{model}/{days}")
+def predict(forecast_only: bool, model: str, days: str):
     try:
         valid_days = int(days)
     except (TypeError, ValueError):
@@ -34,7 +34,7 @@ def predict(forecast_only: bool, days: str):
         return JSONResponse(status_code=400, content={"error": "days must be a positive integer"})
 
     try:
-        record = random_predict(forecast_only, valid_days)
+        record = random_predict(forecast_only, model, valid_days)
     except Exception as e:
         print(e)
         return JSONResponse(status_code=500, content={"error": str(e)})

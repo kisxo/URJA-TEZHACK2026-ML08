@@ -18,6 +18,12 @@ function App() {
   const [historyError, setHistoryError] = useState(null);
   const [forecastOnly, setForecastOnly] = useState(false);
   const [days, setDays] = useState(1);
+  const [selectModel, setSelectModel] = useState('xg');
+
+
+  const handleModelChange = (event) => {
+    setSelectModel(event.target.value);
+  };
 
   const loadHistory = useCallback(async () => {
     setHistoryLoading(true);
@@ -54,7 +60,7 @@ function App() {
 
     try {
       const response = await fetch(
-        `${API_BASE}/predict/${forecastOnly}/${days}`,
+        `${API_BASE}/predict/${forecastOnly}/${selectModel}/${days}`,
         { method: "POST" }
       );
 
@@ -148,10 +154,22 @@ function App() {
             />
           </label>
 
-            <button onClick={handleClearHistory} className="clear" disabled={loading}>
-              {loading ? "Clearing..." : "Clear History"}
-            </button>
 
+            <div>
+                <div style={{ padding: '20px' }}>
+                <label htmlFor="fruit-select">Choose a fruit: </label>
+                <select id="fruit-select" value={selectModel} onChange={handleModelChange}>
+                  <option value="xg">XGBoost</option>
+                  <option value="rf">Random Forest</option>
+                </select>
+                
+                <p>Selected: {selectModel}</p>
+              </div>
+
+                <button onClick={handleClearHistory} className="clear" disabled={loading}>
+                  {loading ? "Clearing..." : "Clear History"}
+                </button>
+            </div>
             <button type="submit" disabled={loading}>
               {loading ? "Generating..." : "Forecast"}
             </button>

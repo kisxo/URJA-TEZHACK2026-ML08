@@ -15,7 +15,6 @@ from db import init_db, SessionLocal, PredictionRecord, ForecastRow
 # Resolve paths relative to this file, not the process's current working
 # directory, so the script works no matter where it's invoked from.
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_PATH = os.path.join(BASE_DIR, "urja.joblib")
 ACTUAL_DATA_PATH = os.path.join(BASE_DIR, "stage-3", "actual_data.csv")
 FORECAST_DATA_PATH = os.path.join(BASE_DIR, "stage-3", "forecast_data.csv")
 
@@ -55,7 +54,7 @@ def _add_cyclical_features(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def random_predict(forecast_only: bool = False, no_of_days: int = 1):
+def random_predict(forecast_only: bool = False, model: str = 'xg', no_of_days: int = 1):
     """
     Run the trained model against a dataset, plot a randomly chosen window of
     `no_of_days` days, persist the run + row-level forecasts to the DB, and
@@ -64,8 +63,11 @@ def random_predict(forecast_only: bool = False, no_of_days: int = 1):
     if no_of_days < 1:
         raise ValueError("no_of_days must be >= 1")
 
+    MODEL_PATH = f"urja-{model}.joblib"
+
     if not os.path.exists(MODEL_PATH):
         raise FileNotFoundError(f"Model file not found at {MODEL_PATH}")
+
 
     model = joblib.load(MODEL_PATH)
 
